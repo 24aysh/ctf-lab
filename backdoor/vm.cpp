@@ -22,8 +22,8 @@ static inline uint32_t read_u32_le(const uint8_t *mem, uint32_t addr) {
 VM::VM() {
     vmState = new state();
     memset(vmState, 0, sizeof(state));
-    memset(&instruction, 0, sizeof(instr));
-    vmState->reg[r7] = static_cast<int>(sizeof(vmState->memory));
+    memset(&i, 0, sizeof(instr));
+    vmState->reg[7] = static_cast<int>(sizeof(vmState->memory));
 }
 
 VM::~VM() {
@@ -40,6 +40,14 @@ void VM::loadProgram(const std::vector<int>& prog) {
         vmState->memory[LOAD_OFFSET + i] = static_cast<uint8_t>(prog[i] & 0xFF);
     }
 }
+void VM::loadSbox(const std::vector<int> &sbox){
+    if(sbox.size() != sizeof(vmState->sbox)){
+        throw runtime_error("Sbox not possible");
+    }
+    for(size_t i =0;i<sbox.size();i++){
+        vmState->sbox[i] = static_cast<uint8_t>(sbox[i]&0xFF);
+    }
+}
 
 void VM::loadInput(const std::string &input) {
     const size_t HEADER = 4;
@@ -48,6 +56,14 @@ void VM::loadInput(const std::string &input) {
 
     for (size_t i = 0; i < input.size(); ++i) {
         vmState->memory[HEADER + i] = static_cast<uint8_t>(input[i]);
+    }
+}
+void VM::loadKey(const vector<int> &key){
+    if(key.size() != sizeof(vmState->key)){
+        throw runtime_error("key not possible");
+    }
+    for(size_t i =0;i<key.size();i++){
+        vmState->key[i] = static_cast<uint8_t>(key[i]&0xFF);
     }
 }
 
@@ -73,108 +89,123 @@ void VM::fetch(){
     vmState->ip+=3;
 }
 void VM::decode(){
-    int opcode = vmState->memory[99+vmState->ip];
-    int op1 = vmState->memory[99+vmState->ip+1];
-    int op2 = vmState->memory[99 +vmState->ip+2];
+    int opcode = vmState->memory[98+vmState->ip];
+    int op1 = vmState->memory[98+vmState->ip+1];
+    int op2 = vmState->memory[98 +vmState->ip+2];
 
-    instruction.op1 = op1;
-    instruction.op2 = op2;
-    instruction.opcode = opcode;
+    i.op1 = op1;
+    i.op2 = op2;
+    i.opcode = opcode;
+    
 }
 void VM::execute(){
-    int opcode = instruction.opcode;
+    int opcode = i.opcode;
     bool val;
+    uint16_t off;
     switch (opcode)
     {
     case 0x1: //MOVI
-        vmState->reg[instruction.op1] = instruction.op2;
+        vmState->reg[i.op1] = i.op2;
         break;
     case 0x2: // MOV
-        vmState->reg[instruction.op1] = vmState->reg[instruction.op2];
+        vmState->reg[i.op1] = vmState->reg[i.op2];
         break;
     case 0x3: // ADD
-        vmState->reg[instruction.op1] += vmState->reg[instruction.op2];
+        vmState->reg[i.op1] += vmState->reg[i.op2];
         break;
     case 0x4: // ADDI
-        vmState->reg[instruction.op1] += instruction.op2;
+        vmState->reg[i.op1] += i.op2;
         break;
     case 0x5: // SUB
-        vmState->reg[instruction.op1] -= vmState->reg[instruction.op2];
+        vmState->reg[i.op1] -= vmState->reg[i.op2];
         break;
     case 0x6: // SUBI
-        vmState->reg[instruction.op1] -= instruction.op2;
+        vmState->reg[i.op1] -= i.op2;
         break;
     case 0x7: // MUL
-        vmState->reg[instruction.op1] *= vmState->reg[instruction.op2];
+        vmState->reg[i.op1] *= vmState->reg[i.op2];
         break;
     case 0x8: // MULI
-        vmState->reg[instruction.op1] *= instruction.op2;
+        vmState->reg[i.op1] *= i.op2;
         break;
     case 0x9: // XOR
-        vmState->reg[instruction.op1] ^= vmState->reg[instruction.op2];
+        vmState->reg[i.op1] ^= vmState->reg[i.op2];
         break;
     case 0x10: // XORI
-        vmState->reg[instruction.op1] ^= instruction.op2;
+        vmState->reg[i.op1] ^= i.op2;
         break;
     case 0x11: // AND
-        vmState->reg[instruction.op1] = vmState->reg[instruction.op1] && vmState->reg[instruction.op2];
+        vmState->reg[i.op1] = vmState->reg[i.op1] && vmState->reg[i.op2];
         break;
     case 0x12: // ANDI
-        vmState->reg[instruction.op1] = vmState->reg[instruction.op1] && instruction.op2;
+        vmState->reg[i.op1] = vmState->reg[i.op1] && i.op2;
         break;
     case 0x13: // OR
-        vmState->reg[instruction.op1] = vmState->reg[instruction.op1] || vmState->reg[instruction.op2];
+        vmState->reg[i.op1] = vmState->reg[i.op1] || vmState->reg[i.op2];
         break;
     case 0x14: // ORI
-        vmState->reg[instruction.op1] = vmState->reg[instruction.op1] || instruction.op2;
+        vmState->reg[i.op1] = vmState->reg[i.op1] || i.op2;
         break;
     case 0x15: // SHL
-        vmState->reg[instruction.op1] = vmState->reg[instruction.op1] << vmState->reg[instruction.op2];
+        vmState->reg[i.op1] = vmState->reg[i.op1] << vmState->reg[i.op2];
         break;
     case 0x16: // SHLI
-        vmState->reg[instruction.op1] = vmState->reg[instruction.op1] << instruction.op2;
+        vmState->reg[i.op1] = vmState->reg[i.op1] << i.op2;
         break;
     case 0x17: // SHR
-        vmState->reg[instruction.op1] = vmState->reg[instruction.op1] >> vmState->reg[instruction.op2];
+        vmState->reg[i.op1] = vmState->reg[i.op1] >> vmState->reg[i.op2];
         break;
     case 0x18: // SHRI
-        vmState->reg[instruction.op1] = vmState->reg[instruction.op1] >> instruction.op2;
+        vmState->reg[i.op1] = vmState->reg[i.op1] >> i.op2;
+        break;
+    case 0x19: //MOVS
+        vmState->reg[i.op1] = vmState->sbox[vmState->reg[i.op2] & 0xff];
+        break;
+    case 0x20: //MOVK
+        vmState->reg[i.op1] = vmState->key[vmState->reg[i.op2]];
         break;
     case 0x24: //CALL
         vmState->reg[7] = vmState->ip;
-        vmState->ip = instruction.op1;
+        vmState->ip = i.op1;
         break;
     case 0x25: //RETURN
         vmState->ip = vmState->reg[7];
         break;
     case 0x40: //JMP
-        vmState->ip = instruction.op1;
+        off = ((uint16_t)i.op1 << 8) | (uint8_t)i.op2;
+        vmState->ip += off;
         break;
     case 0x41: //JMP IF A!=B
-        val = vmState->reg[instruction.op1] == vmState->reg[instruction.op2];
-        if(!val){
-            vmState->ip = instruction.op1;
+        off = ((uint16_t)i.op1 << 8) | (uint8_t)i.op2;
+        if(!vmState->zf){
+            vmState->ip += off;
+            vmState->zf = 0;  
         }
         break;
     case 0x42: //JMP IF A==B
-        val = vmState->reg[instruction.op1] == vmState->reg[instruction.op2];
-        if(val){
-            vmState->ip = instruction.op1;
+        off = ((uint16_t)i.op1 << 8) | (uint8_t)i.op2;
+        if(vmState->zf){
+            vmState->ip += off;
+            vmState->zf = 0;        
         }
         break;
+    case 0x50: // NJMP
+        off = ((uint16_t)i.op1 << 8) | (uint8_t)i.op2;
+        vmState->ip -= off;
+        break;
     case 0x43: // CMP
-        val = vmState->reg[instruction.op1] == vmState->reg[instruction.op2];
+        val = vmState->reg[i.op1] == vmState->reg[i.op2];
         vmState->zf = (val ? 1:0);
-        break;    
+        break;
     case 0x44: // CMPI 
-        val = vmState->reg[instruction.op1] == instruction.op2;
+        val = vmState->reg[i.op1] == i.op2;
         vmState->zf = (val ? 1:0);
         break;
     case 0x70: //LOAD
-        vmState->reg[instruction.op1] = vmState->memory[instruction.op2];
+        vmState->reg[i.op1] = vmState->memory[i.op2];
         break;
     case 0x80: //STORE
-        vmState->reg[instruction.op2] = vmState->memory[instruction.op1];
+        vmState->memory[i.op1] = vmState->reg[i.op2];
         break;
     case 0x90: // NOP
         break;

@@ -1,8 +1,10 @@
 flag -> backdoorCTF{did_you_had_fun_solving_this_challenge??_i_had_a_lot_while_making_this_one....}
+L = did_you_had_fun_solving_this_challenge?
+R = ?_i_had_a_lot_while_making_this_one....
 
-checks
-length check
-
+r6 contains the result of check
+r0,r1,r2,r3 -> used while doing ciphers
+r5 used as loop counter
 
 Feistel rounds / small block cipher (18 chars)
 Idea: treat the entire input (or blocks) as the plaintext of a small Feistel network; encrypt with secret rounds and compare to a stored ciphertext.
@@ -17,7 +19,7 @@ for r in 0..R-1:
 if concat(left,right) == expected: accept
 
 
-    There will be 8 regs -> 6 general purpose reg
+    There will be 8 regs -> 8 general purpose reg
     1 ip (instruction pointer)
     1 zf (zero flag)
     ins -> 3 bytes ( 1 byte opcode , 1 byte operand each)
@@ -41,6 +43,8 @@ if concat(left,right) == expected: accept
     0x16 shli reg,imm32
     0x17 shr reg,reg
     0x18 shri reg,imm32
+    0x19 movs reg,idx
+    0x20 movk reg,idx
     0x70 load
     0x80 store
 
@@ -55,4 +59,34 @@ if concat(left,right) == expected: accept
     0x90 nop
     0x91 halt
 
+   check length
+   do 16 rounds Feistel transformation
+   F function is sbox -> xor -> sbox
+   
+   load r4,mem[4]  // change the index
+   load r0,mem[4]  // change the index
+   mov r1,r0
+   movs r0, r1
+   movi r1,0  //change the index
+   movk r2,r1
+   xor r0,r2
+   mov r1,r0
+   movs r0,r1
+   xor r0,r4
+   load r3,mem[43]
+   store mem{43},r0
+   store mem[4],r3
+   
 
+
+movi r5,0
+cmpi r5,16
+jz .compare with hardcoded
+
+movi r5 0
+load r0 mem[4]
+cmpi r0 217
+jnz 0 3
+addi r5 1
+load r0 mem[5]
+cmpi r0 87
